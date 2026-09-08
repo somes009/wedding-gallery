@@ -117,7 +117,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
   const handleAudioError = () => {
     if (musicSrc === '/music.mp3') {
-      setMusicSrc('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3');
+      setMusicSrc('https://incompetech.com/music/royalty-free/mp3-royaltyfree/Gymnopedie%20No%201.mp3');
     }
   };
 
