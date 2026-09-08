@@ -162,13 +162,13 @@ export const MusicStatusBar: React.FC<MusicStatusBarProps> = ({
   setCustomMusicFile,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [musicName, setMusicName] = useState<string>('婚礼背景音乐');
+  const [musicName, setMusicName] = useState<string>('《吉诺佩蒂 · 浪漫钢琴曲》');
 
   useEffect(() => {
     if (customMusicFile) {
       setMusicName(customMusicFile.name.replace(/\.[^/.]+$/, ""));
     } else {
-      setMusicName('婚礼背景音乐 (默认)');
+      setMusicName('《吉诺佩蒂 · 浪漫钢琴曲》');
     }
   }, [customMusicFile]);
 
