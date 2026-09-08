@@ -95,6 +95,36 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeys);
   }, [photos, currentIndex, isRandom, isPlaying]);
 
+  useEffect(() => {
+    let timeoutId: any;
+
+    const handleMouseMove = () => {
+      // 只要鼠标移动，就显示控制栏，并重置定时器
+      setIsControlVisible(true);
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      // 3秒后自动隐藏控制栏
+      timeoutId = setTimeout(() => {
+        // 如果鼠标悬停在控制栏内部，或者正在输入文本/选择下拉菜单，则不自动隐藏
+        const isHoveringControl = document.querySelector('.control-bar-container:hover');
+        const isInteractiveFocused = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName || '');
+        
+        if (!isHoveringControl && !isInteractiveFocused) {
+          setIsControlVisible(false);
+        }
+      }, 3000);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
+
   const handleScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
     if (target.closest('.control-bar-container')) return;
