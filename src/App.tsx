@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { WelcomeScreen } from './components/WelcomeScreen';
 import { PhotoViewer } from './components/PhotoViewer';
 import { ControlBar } from './components/ControlBar';
 import { MusicPlayer } from './components/MusicPlayer';
@@ -11,7 +10,6 @@ const DEMO = [
 ];
 
 export default function App() {
-  const [hasStarted, setHasStarted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [duration, setDuration] = useState(8000);
@@ -19,11 +17,10 @@ export default function App() {
   const [isPetalsOn, setIsPetalsOn] = useState(true);
   const [titleText, setTitleText] = useState('新郎 某某 ❤️ 新娘 某某 | 我们结婚啦 💍');
 
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(true);
   const [musicVolume, setMusicVolume] = useState(0.4);
   const [customMusicFile, setCustomMusicFile] = useState<File | null>(null);
 
-  const [localPhotos, setLocalPhotos] = useState<string[]>([]);
   const [importedPhotos, setImportedPhotos] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
 
@@ -32,7 +29,6 @@ export default function App() {
   useEffect(() => {
     const modules = import.meta.glob('/src/assets/photos/*.{png,jpg,jpeg,PNG,JPG,JPEG,svg,webp}', { eager: true });
     const paths = Object.keys(modules).map((key) => (modules[key] as any).default || key);
-    setLocalPhotos(paths);
     setPhotos(paths.length > 0 ? paths : DEMO);
   }, []);
 
@@ -63,10 +59,10 @@ export default function App() {
   const handlePrev = () => setCurrentIndex(getNextIdx(-1));
 
   useEffect(() => {
-    if (!isPlaying || photos.length <= 1 || !hasStarted) return;
+    if (!isPlaying || photos.length <= 1) return;
     const interval = setInterval(handleNext, duration);
     return () => clearInterval(interval);
-  }, [isPlaying, photos, duration, isRandom, currentIndex, hasStarted]);
+  }, [isPlaying, photos, duration, isRandom, currentIndex]);
 
   useEffect(() => {
     const handleKeys = (e: KeyboardEvent) => {
@@ -89,26 +85,6 @@ export default function App() {
     if (target.closest('.control-bar-container')) return;
     setIsControlVisible((prev) => !prev);
   };
-
-  const handleStart = () => {
-    setHasStarted(true);
-    setIsMusicPlaying(true);
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch((err) => console.log(err));
-    }
-  };
-
-  if (!hasStarted) {
-    return (
-      <>
-        <WelcomeScreen
-          onStart={handleStart} localPhotosCount={localPhotos.length} importedPhotosCount={importedPhotos.length}
-          titleText={titleText} setTitleText={setTitleText} onImportFolder={handleImportFolder}
-        />
-        <MusicPlayer isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} customMusicFile={customMusicFile} volume={musicVolume} />
-      </>
-    );
-  }
 
   return (
     <div 

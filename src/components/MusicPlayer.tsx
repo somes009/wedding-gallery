@@ -79,6 +79,27 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     };
   }, [isPlaying]);
 
+  // 首击/点按解冻浏览器自动播放政策限制（Autoplay Policy Unlocker）
+  useEffect(() => {
+    const unlock = () => {
+      if (isPlaying && audioRef.current && audioRef.current.paused) {
+        fadeIn(); // 温柔淡入响起
+        window.removeEventListener('click', unlock);
+        window.removeEventListener('keydown', unlock);
+      }
+    };
+
+    if (isPlaying) {
+      window.addEventListener('click', unlock);
+      window.addEventListener('keydown', unlock);
+    }
+
+    return () => {
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, [isPlaying]);
+
   useEffect(() => {
     if (audioRef.current && isPlaying) {
       audioRef.current.volume = volume;
