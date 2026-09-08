@@ -26,3 +26,8 @@ dist-ssr/
 *.njsproj
 *.sln
 *.sw?
+
+# 忽略所有放置在 src/assets/photos 目录下的真实婚礼照片
+/src/assets/photos/*
+# 排除 .gitkeep，确保空文件夹目录结构依然保留在 Git 中
+!/src/assets/photos/.gitkeep
