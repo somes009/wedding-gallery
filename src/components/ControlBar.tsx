@@ -51,12 +51,41 @@ export const ControlBar: React.FC<Props> = ({
           <button onClick={() => setIsRandom(!isRandom)} className={`p-1.5 rounded-lg transition-all ${isRandom ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`}>
             {isRandom ? <Shuffle size={14} /> : <Repeat size={14} />}
           </button>
-          <select value={duration} onChange={e => setDuration(Number(e.target.value))} className="bg-white/10 text-white rounded-lg px-2 py-1 text-xs border border-white/10 cursor-pointer focus:outline-none">
+          <select
+            value={[3000, 5000, 8000, 10000].includes(duration) ? duration : "custom"}
+            onChange={e => {
+              const val = e.target.value;
+              if (val === "custom") {
+                setDuration(12000); // 默认自定义设为 12 秒
+              } else {
+                setDuration(Number(val));
+              }
+            }}
+            className="bg-white/10 text-white rounded-lg px-2 py-1 text-xs border border-white/10 cursor-pointer focus:outline-none"
+          >
             <option value={3000} className="bg-neutral-950">3秒</option>
             <option value={5000} className="bg-neutral-900">5秒</option>
             <option value={8000} className="bg-neutral-900">8秒</option>
             <option value={10000} className="bg-neutral-900">10秒</option>
+            <option value="custom" className="bg-neutral-950">自定义...</option>
           </select>
+
+          {![3000, 5000, 8000, 10000].includes(duration) && (
+            <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1 animate-pulse">
+              <input
+                type="number"
+                min="1"
+                max="300"
+                value={Math.round(duration / 1000)}
+                onChange={e => {
+                  const s = Math.max(1, Math.min(300, Number(e.target.value)));
+                  setDuration(s * 1000);
+                }}
+                className="w-8 bg-transparent text-white text-xs text-center focus:outline-none font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="text-[10px] text-gray-400 select-none">秒</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1 border-l border-white/10 pl-2">
