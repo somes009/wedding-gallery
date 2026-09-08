@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PhotoViewer } from './components/PhotoViewer';
 import { ControlBar } from './components/ControlBar';
-import { MusicPlayer } from './components/MusicPlayer';
+import { MusicPlayer, DEFAULT_PLAYLIST, Track } from './components/MusicPlayer';
 
 const DEMO = [
   'https://images.unsplash.com/photo-1519741497674-611481863552?w=1500',
@@ -19,7 +19,22 @@ export default function App() {
 
   const [isMusicPlaying, setIsMusicPlaying] = useState(true);
   const [musicVolume, setMusicVolume] = useState(0.4);
-  const [customMusicFile, setCustomMusicFile] = useState<File | null>(null);
+  const [playlist, setPlaylist] = useState<Track[]>(DEFAULT_PLAYLIST);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [isMusicShuffle, setIsMusicShuffle] = useState(false);
+
+  const handleAddMusicFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const newTrack: Track = {
+      id: `custom-${Date.now()}`,
+      name: file.name.replace(/\.[^/.]+$/, ""),
+      localSrc: url,
+      isCustom: true
+    };
+    setPlaylist(prev => [...prev, newTrack]);
+    setCurrentTrackIndex(playlist.length);
+    setIsMusicPlaying(true);
+  };
 
   const [importedPhotos, setImportedPhotos] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -97,9 +112,14 @@ export default function App() {
         onPrev={handlePrev} onNext={handleNext} duration={duration} setDuration={setDuration} isRandom={isRandom} setIsRandom={setIsRandom}
         isPetalsOn={isPetalsOn} setIsPetalsOn={setIsPetalsOn} titleText={titleText} setTitleText={setTitleText}
         isMusicPlaying={isMusicPlaying} setIsMusicPlaying={setIsMusicPlaying} musicVolume={musicVolume} setMusicVolume={setMusicVolume}
-        customMusicFile={customMusicFile} setCustomMusicFile={setCustomMusicFile} onImportFolder={handleImportFolder}
+        playlist={playlist} setPlaylist={setPlaylist} currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
+        isMusicShuffle={isMusicShuffle} setIsMusicShuffle={setIsMusicShuffle} onAddMusicFile={handleAddMusicFile} onImportFolder={handleImportFolder}
       />
-      <MusicPlayer isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} customMusicFile={customMusicFile} volume={musicVolume} />
+      <MusicPlayer
+        isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} playlist={playlist}
+        currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
+        isMusicShuffle={isMusicShuffle} volume={musicVolume}
+      />
     </div>
   );
 }

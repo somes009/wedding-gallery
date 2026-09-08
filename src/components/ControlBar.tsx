@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, Type, FolderOpen, Flower } from 'lucide-react';
-import { MusicStatusBar } from './MusicPlayer';
+import { MusicStatusBar, Track } from './MusicPlayer';
 
 interface Props {
   isVisible: boolean; isPlaying: boolean; setIsPlaying: (p: boolean) => void;
@@ -8,14 +8,19 @@ interface Props {
   duration: number; setDuration: (ms: number) => void; isRandom: boolean; setIsRandom: (r: boolean) => void;
   isPetalsOn: boolean; setIsPetalsOn: (o: boolean) => void; titleText: string; setTitleText: (t: string) => void;
   isMusicPlaying: boolean; setIsMusicPlaying: (p: boolean) => void; musicVolume: number; setMusicVolume: (v: number) => void;
-  customMusicFile: File | null; setCustomMusicFile: (f: File | null) => void; onImportFolder: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  playlist: Track[]; setPlaylist: React.Dispatch<React.SetStateAction<Track[]>>;
+  currentTrackIndex: number; setCurrentTrackIndex: (idx: number) => void;
+  isMusicShuffle: boolean; setIsMusicShuffle: (s: boolean) => void;
+  onAddMusicFile: (file: File) => void;
+  onImportFolder: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export const ControlBar: React.FC<Props> = ({
   isVisible, isPlaying, setIsPlaying, currentIndex, totalPhotos, onPrev, onNext,
   duration, setDuration, isRandom, setIsRandom, isPetalsOn, setIsPetalsOn,
   titleText, setTitleText, isMusicPlaying, setIsMusicPlaying, musicVolume,
-  setMusicVolume, customMusicFile, setCustomMusicFile, onImportFolder
+  setMusicVolume, playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex,
+  isMusicShuffle, setIsMusicShuffle, onAddMusicFile, onImportFolder
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -101,7 +106,19 @@ export const ControlBar: React.FC<Props> = ({
         </div>
 
         <div className="border-l border-white/10 pl-2">
-          <MusicStatusBar isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} volume={musicVolume} setVolume={setMusicVolume} customMusicFile={customMusicFile} setCustomMusicFile={setCustomMusicFile} />
+          <MusicStatusBar
+            isPlaying={isMusicPlaying}
+            setIsPlaying={setIsMusicPlaying}
+            volume={musicVolume}
+            setVolume={setMusicVolume}
+            playlist={playlist}
+            setPlaylist={setPlaylist}
+            currentTrackIndex={currentTrackIndex}
+            setCurrentTrackIndex={setCurrentTrackIndex}
+            isMusicShuffle={isMusicShuffle}
+            setIsMusicShuffle={setIsMusicShuffle}
+            onAddMusicFile={onAddMusicFile}
+          />
         </div>
       </div>
 
