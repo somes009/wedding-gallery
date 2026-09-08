@@ -17,6 +17,7 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<any>(null);
   const [musicSrc, setMusicSrc] = useState<string>('/music.mp3');
+  const [isBlocked, setIsBlocked] = useState<boolean>(false);
 
   useEffect(() => {
     if (customMusicFile) {
@@ -38,7 +39,15 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     const audio = audioRef.current;
     if (!audio) return;
     if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
-    audio.play().catch(err => console.log("Play failed:", err));
+    
+    audio.play()
+      .then(() => {
+        setIsBlocked(false); // 播放成功，解除拦截状态
+      })
+      .catch(err => {
+        console.log("Play failed, awaiting user gesture:", err);
+        setIsBlocked(true); // 被浏览器拦截
+      });
 
     let currentVol = 0;
     audio.volume = 0;
@@ -113,9 +122,25 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
   };
 
   return (
-    <div className="hidden">
-      <audio ref={audioRef} src={musicSrc} loop onError={handleAudioError} preload="auto" />
-    </div>
+    <>
+      <div className="hidden">
+        <audio ref={audioRef} src={musicSrc} loop onError={handleAudioError} preload="auto" />
+      </div>
+
+      {isBlocked && isPlaying && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none animate-pulse">
+          <div className="flex items-center gap-3 px-5 py-2.5 rounded-full bg-rose-500/25 border border-rose-500/40 text-rose-100 text-sm shadow-2xl backdrop-blur-md">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </span>
+            <span className="font-semibold tracking-wider drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">
+              🎵 点击屏幕任意处，开启背景音乐...
+            </span>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
