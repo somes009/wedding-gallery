@@ -9,11 +9,8 @@ export interface Track {
 }
 
 export const DEFAULT_PLAYLIST: Track[] = [
-  { id: '1', name: '《萨蒂 · 吉诺佩蒂浪漫钢琴曲》', localSrc: '/gymnopedie.mp3' },
-  { id: '2', name: '《巴赫 · 纯净宣誓 C大调前奏曲》', localSrc: '/bach_prelude.mp3' },
-  { id: '3', name: '《埃尔加 · 爱之礼赞经典柔鸣》', localSrc: '/salut_damour.mp3' },
-  { id: '4', name: '《贝多芬 · 经典月光奏鸣曲》', localSrc: '/moonlight_sonata.mp3' },
-  { id: '5', name: '《萨蒂 · 吉诺佩蒂暖调协奏》', localSrc: '/gymnopedie_reconcert.mp3' }
+  { id: '1', name: '告白气球', localSrc: '/gbqq.mp3' },
+  { id: '2', name: '像晴天像雨天', localSrc: '/xqtxyt.mp3' },
 ];
 
 interface MusicPlayerProps {
