@@ -1,0 +1,90 @@
+import React, { useState, useRef } from 'react';
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, Type, FolderOpen, Flower } from 'lucide-react';
+import { MusicStatusBar } from './MusicPlayer';
+
+interface Props {
+  isVisible: boolean; isPlaying: boolean; setIsPlaying: (p: boolean) => void;
+  currentIndex: number; totalPhotos: number; onPrev: () => void; onNext: () => void;
+  duration: number; setDuration: (ms: number) => void; isRandom: boolean; setIsRandom: (r: boolean) => void;
+  isPetalsOn: boolean; setIsPetalsOn: (o: boolean) => void; titleText: string; setTitleText: (t: string) => void;
+  isMusicPlaying: boolean; setIsMusicPlaying: (p: boolean) => void; musicVolume: number; setMusicVolume: (v: number) => void;
+  customMusicFile: File | null; setCustomMusicFile: (f: File | null) => void; onImportFolder: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}
+
+export const ControlBar: React.FC<Props> = ({
+  isVisible, isPlaying, setIsPlaying, currentIndex, totalPhotos, onPrev, onNext,
+  duration, setDuration, isRandom, setIsRandom, isPetalsOn, setIsPetalsOn,
+  titleText, setTitleText, isMusicPlaying, setIsMusicPlaying, musicVolume,
+  setMusicVolume, customMusicFile, setCustomMusicFile, onImportFolder
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const toggleFull = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(e => console.log(e));
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false));
+    }
+  };
+
+  const btn = "p-1.5 rounded-lg text-gray-300 hover:text-white hover:bg-white/10 transition-all";
+
+  return (
+    <div className={`control-bar-container fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex flex-col gap-2 items-center transition-all duration-700 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0 pointer-events-none'}`}>
+      <div className="flex items-center gap-3 bg-black/60 backdrop-blur-lg px-4 py-2 rounded-2xl border border-white/10 shadow-2xl">
+        <button onClick={() => fileRef.current?.click()} className={btn} title="文件夹追加照片">
+          <FolderOpen size={16} />
+        </button>
+        <input ref={fileRef} type="file" {...{webkitdirectory: "", directory: "", multiple: true} as any} onChange={onImportFolder} className="hidden" />
+
+        <div className="flex items-center gap-1 border-l border-white/10 pl-2">
+          <button onClick={onPrev} className={btn} disabled={totalPhotos <= 1}><SkipBack size={16} /></button>
+          <button onClick={() => setIsPlaying(!isPlaying)} className="p-2 rounded-full bg-rose-500 hover:bg-rose-600 text-white transition-all hover:scale-105">
+            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+          </button>
+          <button onClick={onNext} className={btn} disabled={totalPhotos <= 1}><SkipForward size={16} /></button>
+        </div>
+
+        <div className="flex items-center gap-1.5 border-l border-white/10 pl-2 text-xs">
+          <button onClick={() => setIsRandom(!isRandom)} className={`p-1.5 rounded-lg transition-all ${isRandom ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`}>
+            {isRandom ? <Shuffle size={14} /> : <Repeat size={14} />}
+          </button>
+          <select value={duration} onChange={e => setDuration(Number(e.target.value))} className="bg-white/10 text-white rounded-lg px-2 py-1 text-xs border border-white/10 cursor-pointer focus:outline-none">
+            <option value={3000} className="bg-neutral-950">3秒</option>
+            <option value={5000} className="bg-neutral-900">5秒</option>
+            <option value={8000} className="bg-neutral-900">8秒</option>
+            <option value={10000} className="bg-neutral-900">10秒</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-1 border-l border-white/10 pl-2">
+          <button onClick={() => setIsPetalsOn(!isPetalsOn)} className={`p-1.5 rounded-lg transition-all ${isPetalsOn ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`}>
+            <Flower size={14} className={isPetalsOn ? 'animate-spin [animation-duration:6s]' : ''} />
+          </button>
+          <button onClick={() => setIsEditing(!isEditing)} className={`p-1.5 rounded-lg transition-all ${isEditing ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`}>
+            <Type size={14} />
+          </button>
+          <button onClick={toggleFull} className={btn}>
+            {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
+          </button>
+        </div>
+
+        <div className="border-l border-white/10 pl-2">
+          <MusicStatusBar isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} volume={musicVolume} setVolume={setMusicVolume} customMusicFile={customMusicFile} setCustomMusicFile={setCustomMusicFile} />
+        </div>
+      </div>
+
+      {isEditing && (
+        <div className="flex items-center gap-2 bg-black/80 backdrop-blur-lg px-3 py-1.5 rounded-xl border border-white/10 w-[300px] sm:w-[380px]">
+          <span className="text-xs text-rose-400 font-semibold shrink-0">字幕:</span>
+          <input type="text" value={titleText} onChange={e => setTitleText(e.target.value)} placeholder="李雷 ❤️ 韩梅梅 | 2026.09.08" className="bg-white/5 border border-white/10 rounded px-2 py-0.5 text-xs text-white w-full focus:outline-none" />
+          <button onClick={() => setIsEditing(false)} className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded shrink-0">保存</button>
+        </div>
+      )}
+
+      {totalPhotos > 0 && <div className="text-[10px] bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full text-white/60">{currentIndex + 1} / {totalPhotos}</div>}
+    </div>
+  );
+};
