@@ -8,16 +8,16 @@ export interface Track {
   isCustom?: boolean;
 }
 
-// 运行时自动扫描 public/music 目录下所有音频格式，无文件时列表为空
-const musicModules = import.meta.glob('/public/music/*.{mp3,wav,flac,aac,ogg,m4a}', { eager: true });
+// 运行时自动扫描 src/assets/music 目录下所有音频格式，无文件时列表为空
+const musicModules = import.meta.glob('/src/assets/music/*.{mp3,wav,flac,aac,ogg,m4a}', { eager: true });
 
 export const DEFAULT_PLAYLIST: Track[] = Object.keys(musicModules).map((key, index) => {
   const fileName = key.split('/').pop()?.replace(/\.[^/.]+$/, "") || `婚礼音乐 ${index + 1}`;
-  const webPath = key.replace(/^\/public/, "");
+  const resolvedPath = (musicModules[key] as any).default || key;
   return {
     id: `auto-${index}`,
     name: fileName,
-    localSrc: webPath,
+    localSrc: resolvedPath,
   };
 });
 

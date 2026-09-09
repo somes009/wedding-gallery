@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { PhotoViewer } from './components/PhotoViewer';
+import { PhotoViewer, TransitionType } from './components/PhotoViewer';
 import { ControlBar } from './components/ControlBar';
 import { MusicPlayer, DEFAULT_PLAYLIST, Track } from './components/MusicPlayer';
 import { LoadingScreen } from './components/LoadingScreen';
@@ -16,6 +16,7 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(8000);
   const [isRandom, setIsRandom] = useState(false);
+  const [transitionType, setTransitionType] = useState<TransitionType>('slide');
   const [titleText, setTitleText] = useState('新郎 何建峰 ❤️ 新娘 周婉情 | 我们结婚啦 💍');
 
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -230,7 +231,7 @@ export default function App() {
       className="relative w-screen h-screen overflow-hidden bg-black select-none"
       onClick={handleScreenClick}
     >
-      <PhotoViewer photos={photos} currentIndex={currentIndex} />
+      <PhotoViewer photos={photos} currentIndex={currentIndex} transitionType={transitionType} />
       {hasStarted && (
         <>
           <ControlBar
@@ -241,6 +242,8 @@ export default function App() {
             playlist={playlist} setPlaylist={setPlaylist} currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
             isMusicShuffle={isMusicShuffle} setIsMusicShuffle={setIsMusicShuffle} onAddMusicFile={handleAddMusicFile} onImportFolder={handleImportFolder}
             onOpenAlbum={() => setIsAlbumOpen(true)}
+            transitionType={transitionType}
+            setTransitionType={setTransitionType}
           />
           <PhotoAlbumModal
             isOpen={isAlbumOpen}

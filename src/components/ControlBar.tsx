@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, Type, FolderOpen, LayoutGrid } from 'lucide-react';
 import { MusicStatusBar, Track } from './MusicPlayer';
+import { TransitionType } from './PhotoViewer';
 
 interface Props {
   isVisible: boolean; isPlaying: boolean; setIsPlaying: (p: boolean) => void;
@@ -14,6 +15,8 @@ interface Props {
   onAddMusicFile: (file: File) => void;
   onImportFolder: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onOpenAlbum: () => void;
+  transitionType: TransitionType;
+  setTransitionType: (t: TransitionType) => void;
 }
 
 export const ControlBar: React.FC<Props> = ({
@@ -22,7 +25,7 @@ export const ControlBar: React.FC<Props> = ({
   titleText, setTitleText, isMusicPlaying, setIsMusicPlaying, musicVolume,
   setMusicVolume, playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex,
   isMusicShuffle, setIsMusicShuffle, onAddMusicFile, onImportFolder,
-  onOpenAlbum
+  onOpenAlbum, transitionType, setTransitionType
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -93,6 +96,19 @@ export const ControlBar: React.FC<Props> = ({
               <span className="text-[10px] text-gray-400 select-none">秒</span>
             </div>
           )}
+
+          <select
+            value={transitionType}
+            onChange={e => setTransitionType(e.target.value as TransitionType)}
+            className="bg-white/10 text-white rounded-lg px-2 py-1 text-xs border border-white/10 cursor-pointer focus:outline-none"
+            title="过渡动效"
+          >
+            <option value="slide" className="bg-neutral-950">横向滑动</option>
+            <option value="slideV" className="bg-neutral-900">纵向滑动</option>
+            <option value="fade" className="bg-neutral-900">经典淡入</option>
+            <option value="zoom" className="bg-neutral-900">电影缩放</option>
+            <option value="none" className="bg-neutral-950">无转场</option>
+          </select>
         </div>
 
         <div className="flex items-center gap-1 border-l border-white/10 pl-2">
