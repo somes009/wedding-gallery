@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, Type, FolderOpen, LayoutGrid } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, FolderOpen, LayoutGrid } from 'lucide-react';
 import { MusicStatusBar, Track } from './MusicPlayer';
 import { TransitionType } from './PhotoViewer';
 
@@ -7,8 +7,7 @@ interface Props {
   isVisible: boolean; isPlaying: boolean; setIsPlaying: (p: boolean) => void;
   currentIndex: number; totalPhotos: number; onPrev: () => void; onNext: () => void;
   duration: number; setDuration: (ms: number) => void; isRandom: boolean; setIsRandom: (r: boolean) => void;
-  titleText: string; setTitleText: (t: string) => void;
-  isMusicPlaying: boolean; setIsMusicPlaying: (p: boolean) => void; musicVolume: number; setMusicVolume: (v: number) => void;
+  musicVolume: number; setMusicVolume: (v: number) => void;
   playlist: Track[]; setPlaylist: React.Dispatch<React.SetStateAction<Track[]>>;
   currentTrackIndex: number; setCurrentTrackIndex: (idx: number) => void;
   isMusicShuffle: boolean; setIsMusicShuffle: (s: boolean) => void;
@@ -22,12 +21,11 @@ interface Props {
 export const ControlBar: React.FC<Props> = ({
   isVisible, isPlaying, setIsPlaying, currentIndex, totalPhotos, onPrev, onNext,
   duration, setDuration, isRandom, setIsRandom,
-  titleText, setTitleText, isMusicPlaying, setIsMusicPlaying, musicVolume,
+  musicVolume,
   setMusicVolume, playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex,
   isMusicShuffle, setIsMusicShuffle, onAddMusicFile, onImportFolder,
   onOpenAlbum, transitionType, setTransitionType
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -105,16 +103,16 @@ export const ControlBar: React.FC<Props> = ({
           >
             <option value="slide" className="bg-neutral-950">横向滑动</option>
             <option value="slideV" className="bg-neutral-900">纵向滑动</option>
+            <option value="slideFade" className="bg-neutral-900">滑动淡入</option>
             <option value="fade" className="bg-neutral-900">经典淡入</option>
             <option value="zoom" className="bg-neutral-900">电影缩放</option>
+            <option value="kenBurns" className="bg-neutral-900">温润漂移 (Ken Burns)</option>
+            <option value="flip3D" className="bg-neutral-900">3D折叠翻页</option>
             <option value="none" className="bg-neutral-950">无转场</option>
           </select>
         </div>
 
         <div className="flex items-center gap-1 border-l border-white/10 pl-2">
-          <button onClick={() => setIsEditing(!isEditing)} className={`p-1.5 rounded-lg transition-all ${isEditing ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`} title="编辑相册字幕">
-            <Type size={14} />
-          </button>
           <button onClick={onOpenAlbum} className={btn} title="查看幸福影集">
             <LayoutGrid size={14} />
           </button>
@@ -125,8 +123,8 @@ export const ControlBar: React.FC<Props> = ({
 
         <div className="border-l border-white/10 pl-2">
           <MusicStatusBar
-            isPlaying={isMusicPlaying}
-            setIsPlaying={setIsMusicPlaying}
+            isPlaying={isPlaying}
+            setIsPlaying={setIsPlaying}
             volume={musicVolume}
             setVolume={setMusicVolume}
             playlist={playlist}
@@ -139,14 +137,6 @@ export const ControlBar: React.FC<Props> = ({
           />
         </div>
       </div>
-
-      {isEditing && (
-        <div className="flex items-center gap-2 bg-black/80 backdrop-blur-lg px-3 py-1.5 rounded-xl border border-white/10 w-[300px] sm:w-[380px]">
-          <span className="text-xs text-rose-400 font-semibold shrink-0">字幕:</span>
-          <input type="text" value={titleText} onChange={e => setTitleText(e.target.value)} placeholder="李雷 ❤️ 韩梅梅 | 2026.09.08" className="bg-white/5 border border-white/10 rounded px-2 py-0.5 text-xs text-white w-full focus:outline-none" />
-          <button onClick={() => setIsEditing(false)} className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded shrink-0">保存</button>
-        </div>
-      )}
 
       {totalPhotos > 0 && <div className="text-[10px] bg-black/40 backdrop-blur-sm px-2 py-0.5 rounded-full text-white/60">{currentIndex + 1} / {totalPhotos}</div>}
     </div>

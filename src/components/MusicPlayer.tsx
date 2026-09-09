@@ -64,9 +64,12 @@ export const MusicPlayer: React.FC<MusicPlayerProps> = ({
     const audio = audioRef.current;
     if (!audio) return;
     if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
-    audio.play().then(() => setIsBlocked(false)).catch(() => setIsBlocked(true));
+    
+    // 💡 优化：在调用 play 之前同步将物理音量归零，防止微秒级别的“电平突变”导致现场高保真音响产生爆音 (Volume Pop)
     let vol = 0;
     audio.volume = 0;
+
+    audio.play().then(() => setIsBlocked(false)).catch(() => setIsBlocked(true));
     fadeIntervalRef.current = setInterval(() => {
       vol += 0.05;
       if (vol >= volume) {
@@ -219,6 +222,16 @@ export const MusicStatusBar: React.FC<MusicStatusBarProps> = ({
       alert("婚礼现场至少需要保留一首背景音乐！");
       return;
     }
+    const deletedTrack = playlist[index];
+    // 💡 优化：对于用户自行追加的 Blob 音频，在从播放列表中移出时执行 revoke 释放浏览器底层的音频缓存，消灭内存泄露
+    if (deletedTrack && deletedTrack.isCustom && deletedTrack.localSrc.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(deletedTrack.localSrc);
+      } catch (err) {
+        console.warn('Failed to revoke object URL for deleted custom track:', err);
+      }
+    }
+
     const isPlayingDeleted = currentTrackIndex === index;
     const newPlaylist = playlist.filter((_, idx) => idx !== index);
     setPlaylist(newPlaylist);
@@ -233,12 +246,12 @@ export const MusicStatusBar: React.FC<MusicStatusBarProps> = ({
 
   return (
     <div className="relative flex items-center gap-2.5 bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 text-xs text-white">
-      <button
-        onClick={() => setIsPlaying(!isPlaying)}
-        className={`p-1.5 rounded-full transition-all duration-300 ${isPlaying ? 'bg-rose-500 text-white animate-spin [animation-duration:8s]' : 'bg-white/20 text-gray-300 hover:text-white'}`}
+      <div
+        className={`p-1.5 rounded-full transition-all duration-300 ${isPlaying ? 'bg-rose-500 text-white animate-spin [animation-duration:8s] shadow-[0_0_8px_rgba(244,63,94,0.5)]' : 'bg-white/10 text-gray-400'}`}
+        title={isPlaying ? "背景音乐播放中（与相册同步）" : "背景音乐已暂停（与相册同步）"}
       >
         <Music size={13} />
-      </button>
+      </div>
 
       <button
         onClick={() => setIsPlaylistOpen(!isPlaylistOpen)}

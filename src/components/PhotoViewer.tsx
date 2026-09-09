@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 
-export type TransitionType = 'none' | 'slide' | 'slideV' | 'fade' | 'zoom';
+export type TransitionType = 'none' | 'slide' | 'slideV' | 'fade' | 'zoom' | 'slideFade' | 'kenBurns' | 'flip3D';
 
 interface Slide {
   id: number;       // 固定物理标识：0, 1, 2，用作固定的 React key，DOM 绝对不重建
@@ -12,12 +12,14 @@ interface ViewerProps {
   photos: string[];
   currentIndex: number;
   transitionType?: TransitionType;
+  duration?: number;
 }
 
 export const PhotoViewer: React.FC<ViewerProps> = ({
   photos,
   currentIndex,
-  transitionType = 'slide',
+  transitionType = 'fade',
+  duration = 8000,
 }) => {
   // 💡 displayIndex 记录当前可见中车厢图片的索引
   const [displayIndex, setDisplayIndex] = useState(currentIndex);
@@ -30,6 +32,9 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
     const initialPhoto = photos[currentIndex];
     return initialPhoto ? { [initialPhoto]: true } : {};
   });
+
+  // 💡 用于追踪加载/解码失败的图片，在播放中途遭遇断网或坏图时，展示专属浪漫占位图，解决死黑穿帮问题
+  const [errorImages, setErrorImages] = useState<Record<string, boolean>>({});
 
   // 💡 物理三槽位，其 DOM 结构 and key 永远不变
   const [slides, setSlides] = useState<Slide[]>(() => {
@@ -65,7 +70,7 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
     // 如果 slides 为空（首次加载数据）或者发生了非相邻的大跨度跳转（例如点击缩略图）或者使用了无动画模式 (none)
     if (
       slides.length === 0 ||
-      (currentIndex !== displayIndex && (!isSequentialNext || !isSequentialPrev || transitionType === 'none'))
+      (currentIndex !== displayIndex && ((!isSequentialNext && !isSequentialPrev) || transitionType === 'none'))
     ) {
       const prevIdx = (currentIndex - 1 + total) % total;
       const nextIdx = (currentIndex + 1) % total;
@@ -106,6 +111,10 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
         })
         .catch(() => {
           img.onload = () => {
+            setLoadedImages((prev) => ({ ...prev, [src]: true }));
+          };
+          img.onerror = () => {
+            setErrorImages((prev) => ({ ...prev, [src]: true }));
             setLoadedImages((prev) => ({ ...prev, [src]: true }));
           };
         });
@@ -254,68 +263,194 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
       };
     }
 
-    // 4️⃣ 经典淡入淡出 (fade) 与 电影级缩放 (zoom)
-    // 渐变与缩放模式下，所有卡片叠放在 (0, 0) 物理坐标，通过 opacity 与 scale 切换
-    let opacity = 0;
-    let scale = 1;
+    // 4️⃣ 经典淡入淡出 (fade) / 电影级缩放 (zoom) / 温润漂移 (kenBurns)
+    // 渐变与缩放模式下，所有卡片叠放在 (0, 0) 物理坐标，通过 opacity 与 scale / transform 切换
+    if (transitionType === 'fade' || transitionType === 'zoom' || transitionType === 'kenBurns') {
+      let opacity = 0;
+      let scale = 1;
 
-    if (!isTransitioning) {
-      opacity = isCurrent ? 1 : 0;
-      scale = isCurrent ? 1 : 0.95;
-    } else {
-      const goingNext = trackOffset === -100;
-      const goingPrev = trackOffset === 100;
+      if (!isTransitioning) {
+        opacity = isCurrent ? 1 : 0;
+        scale = isCurrent ? 1 : 0.95;
+      } else {
+        const goingNext = trackOffset === -100;
+        const goingPrev = trackOffset === 100;
 
-      if (goingNext) {
-        if (slide.leftVw === 100) {
-          // 右侧卡片滑入：淡入至 1
-          opacity = 1;
-          scale = 1;
-        } else if (slide.leftVw === 0) {
-          // 当前卡片滑出：淡出至 0
-          opacity = 0;
-          scale = transitionType === 'zoom' ? 1.05 : 1;
-        } else {
-          opacity = 0;
-          scale = 0.95;
-        }
-      } else if (goingPrev) {
-        if (slide.leftVw === -100) {
-          // 左侧卡片滑入：淡入至 1
-          opacity = 1;
-          scale = 1;
-        } else if (slide.leftVw === 0) {
-          // 当前卡片滑出：淡出至 0
-          opacity = 0;
-          scale = transitionType === 'zoom' ? 1.05 : 1;
-        } else {
-          opacity = 0;
-          scale = 0.95;
+        if (goingNext) {
+          if (slide.leftVw === 100) {
+            opacity = 1;
+            scale = 1;
+          } else if (slide.leftVw === 0) {
+            opacity = 0;
+            scale = transitionType === 'zoom' ? 1.05 : 1;
+          } else {
+            opacity = 0;
+            scale = 0.95;
+          }
+        } else if (goingPrev) {
+          if (slide.leftVw === -100) {
+            opacity = 1;
+            scale = 1;
+          } else if (slide.leftVw === 0) {
+            opacity = 0;
+            scale = transitionType === 'zoom' ? 1.05 : 1;
+          } else {
+            opacity = 0;
+            scale = 0.95;
+          }
         }
       }
-    }
 
-    const transitionParts: string[] = [];
-    if (isTransitioning) {
-      transitionParts.push('opacity 420ms cubic-bezier(0.25, 1, 0.5, 1)');
-      if (transitionType === 'zoom') {
-        transitionParts.push('transform 420ms cubic-bezier(0.25, 1, 0.5, 1)');
+      const transitionParts: string[] = [];
+      if (isTransitioning) {
+        transitionParts.push('opacity 420ms cubic-bezier(0.25, 1, 0.5, 1)');
+        if (transitionType === 'zoom') {
+          transitionParts.push('transform 420ms cubic-bezier(0.25, 1, 0.5, 1)');
+        }
       }
+
+      return {
+        left: 0,
+        top: 0,
+        opacity,
+        transform: transitionType === 'zoom' ? `scale(${scale})` : 'none',
+        transition: transitionParts.join(', ') || 'none',
+        pointerEvents: opacity > 0 ? ('auto' as const) : ('none' as const),
+        willChange: 'transform, opacity',
+      };
     }
 
-    return {
-      left: 0,
-      top: 0,
-      opacity,
-      transform: transitionType === 'zoom' ? `scale(${scale})` : 'none',
-      transition: transitionParts.join(', ') || 'none',
-      pointerEvents: opacity > 0 ? ('auto' as const) : ('none' as const),
-      willChange: 'transform, opacity',
-    };
+    // 5️⃣ 柔和横向滑动 + 渐变 (slideFade)
+    if (transitionType === 'slideFade') {
+      let opacity = 0;
+      let tx = '0px';
+
+      if (!isTransitioning) {
+        opacity = isCurrent ? 1 : 0;
+        tx = isCurrent ? '0px' : (slide.leftVw === 100 ? '12vw' : '-12vw');
+      } else {
+        const goingNext = trackOffset === -100;
+        const goingPrev = trackOffset === 100;
+
+        if (goingNext) {
+          if (slide.leftVw === 100) {
+            opacity = 1;
+            tx = '0px';
+          } else if (slide.leftVw === 0) {
+            opacity = 0;
+            tx = '-12vw';
+          } else {
+            opacity = 0;
+            tx = '-12vw';
+          }
+        } else if (goingPrev) {
+          if (slide.leftVw === -100) {
+            opacity = 1;
+            tx = '0px';
+          } else if (slide.leftVw === 0) {
+            opacity = 0;
+            tx = '12vw';
+          } else {
+            opacity = 0;
+            tx = '12vw';
+          }
+        }
+      }
+
+      const transitionParts: string[] = [];
+      if (isTransitioning) {
+        transitionParts.push('opacity 500ms cubic-bezier(0.25, 1, 0.5, 1)');
+        transitionParts.push('transform 500ms cubic-bezier(0.25, 1, 0.5, 1)');
+      }
+
+      return {
+        left: 0,
+        top: 0,
+        opacity,
+        transform: `translate3d(${tx}, 0, 0)`,
+        transition: transitionParts.join(', ') || 'none',
+        pointerEvents: opacity > 0 ? ('auto' as const) : ('none' as const),
+        willChange: 'transform, opacity',
+      };
+    }
+
+    // 6️⃣ 3D空间立体翻页 (flip3D)
+    if (transitionType === 'flip3D') {
+      let opacity = 0;
+      let transform = 'perspective(1200px) rotateY(0deg) translate3d(0, 0, 0)';
+
+      if (!isTransitioning) {
+        opacity = isCurrent ? 1 : 0;
+        transform = isCurrent 
+          ? 'perspective(1200px) rotateY(0deg) translate3d(0, 0, 0)'
+          : (slide.leftVw === 100 
+              ? 'perspective(1200px) rotateY(45deg) translate3d(20vw, 0, -200px)' 
+              : 'perspective(1200px) rotateY(-45deg) translate3d(-20vw, 0, -200px)');
+      } else {
+        const goingNext = trackOffset === -100;
+        const goingPrev = trackOffset === 100;
+
+        if (goingNext) {
+          if (slide.leftVw === 100) {
+            opacity = 1;
+            transform = 'perspective(1200px) rotateY(0deg) translate3d(0, 0, 0)';
+          } else if (slide.leftVw === 0) {
+            opacity = 0;
+            transform = 'perspective(1200px) rotateY(-45deg) translate3d(-20vw, 0, -200px)';
+          } else {
+            opacity = 0;
+            transform = 'perspective(1200px) rotateY(-45deg) translate3d(-20vw, 0, -200px)';
+          }
+        } else if (goingPrev) {
+          if (slide.leftVw === -100) {
+            opacity = 1;
+            transform = 'perspective(1200px) rotateY(0deg) translate3d(0, 0, 0)';
+          } else if (slide.leftVw === 0) {
+            opacity = 0;
+            transform = 'perspective(1200px) rotateY(45deg) translate3d(20vw, 0, -200px)';
+          } else {
+            opacity = 0;
+            transform = 'perspective(1200px) rotateY(45deg) translate3d(20vw, 0, -200px)';
+          }
+        }
+      }
+
+      const transitionParts: string[] = [];
+      if (isTransitioning) {
+        transitionParts.push('opacity 500ms cubic-bezier(0.25, 1, 0.5, 1)');
+        transitionParts.push('transform 500ms cubic-bezier(0.25, 1, 0.5, 1)');
+      }
+
+      return {
+        left: 0,
+        top: 0,
+        opacity,
+        transform,
+        transformStyle: 'preserve-3d' as const,
+        transition: transitionParts.join(', ') || 'none',
+        pointerEvents: opacity > 0 ? ('auto' as const) : ('none' as const),
+        willChange: 'transform, opacity',
+      };
+    }
+
+    return {};
   };
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden select-none">
+      <style>{`
+        @keyframes kenburns {
+          0% {
+            transform: scale(1) translate3d(0, 0, 0);
+          }
+          50% {
+            transform: scale(1.04) translate3d(0.5%, -0.4%, 0);
+          }
+          100% {
+            transform: scale(1.08) translate3d(-0.8%, -0.5%, 0);
+          }
+        }
+      `}</style>
       {/* 
         💡 3元素物理槽位轮转滑轨（3-Element DOM Rotation Carousel）：
         - 始终只有 3 个固定的卡片容器 [0], [1], [2]，React key 永久不变。
@@ -341,7 +476,9 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
           const src = photos[slide.photoIndex];
           if (!src) return null;
           const isReady = !!loadedImages[src];
+          const hasError = !!errorImages[src];
           const slideStyle = getSlideStyle(slide);
+          const isCurrent = slide.leftVw === 0;
 
           return (
             <div
@@ -349,18 +486,45 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
               className="w-full h-full absolute top-0 flex items-center justify-center bg-transparent p-0"
               style={slideStyle}
             >
-              <img
-                src={src}
-                decoding="async"
-                alt=""
-                // 💡 首帧就绪无延迟：若后台已预解码成功，图片 0ms 满亮横推；若极速连切未就绪，将在 200ms 内柔和浮现
-                className={`max-w-full max-h-full object-contain transition-opacity duration-200 ease-out ${
-                  isReady ? 'opacity-100' : 'opacity-0'
-                }`}
-                onLoad={() => {
-                  setLoadedImages((prev) => ({ ...prev, [src]: true }));
-                }}
-              />
+              {hasError ? (
+                // 💡 容灾卡片：当单张图片在婚礼现场由于各种不可抗力（如网络瞬断、本地文件意外删除或损坏）无法加载时，
+                // 以唯美轻奢的“幸福占位符”优雅浮现，代替丑陋的浏览器默认裂图图标或一整片死黑，维持整场婚礼美学标准。
+                <div className="flex flex-col items-center justify-center p-8 rounded-3xl bg-neutral-900/40 border border-rose-500/20 shadow-2xl backdrop-blur-md max-w-sm text-center space-y-4 animate-pulse select-none">
+                  <div className="relative w-16 h-16 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-rose-500/10 rounded-full blur-xl animate-ping [animation-duration:3s]" />
+                    <span className="text-4xl filter drop-shadow-[0_0_10px_rgba(244,63,94,0.5)]">💍</span>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-base font-medium tracking-widest text-rose-200/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">幸福正在路上...</p>
+                    <p className="text-[10px] text-rose-300/40 tracking-widest uppercase font-mono">Our Love is Eternal</p>
+                  </div>
+                </div>
+              ) : (
+                <img
+                  src={src}
+                  decoding="async"
+                  alt=""
+                  // 💡 首帧就绪无延迟：若后台已预解码成功，图片 0ms 满亮横推；若极速连切未就绪，将在 200ms 内柔和浮现
+                  className={`max-w-full max-h-full object-contain transition-opacity duration-200 ease-out ${
+                    isReady ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={
+                    transitionType === 'kenBurns' && isCurrent && isReady
+                      ? {
+                          animation: `kenburns ${duration + 1200}ms cubic-bezier(0.25, 1, 0.5, 1) forwards`,
+                          willChange: 'transform',
+                        }
+                      : undefined
+                  }
+                  onLoad={() => {
+                    setLoadedImages((prev) => ({ ...prev, [src]: true }));
+                  }}
+                  onError={() => {
+                    setErrorImages((prev) => ({ ...prev, [src]: true }));
+                    setLoadedImages((prev) => ({ ...prev, [src]: true }));
+                  }}
+                />
+              )}
             </div>
           );
         })}

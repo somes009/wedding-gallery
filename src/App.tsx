@@ -16,10 +16,12 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(8000);
   const [isRandom, setIsRandom] = useState(false);
-  const [transitionType, setTransitionType] = useState<TransitionType>('slide');
-  const [titleText, setTitleText] = useState('新郎 何建峰 ❤️ 新娘 周婉情 | 我们结婚啦 💍');
+  const [transitionType, setTransitionType] = useState<TransitionType>('fade');
+  const [titleText] = useState('新郎 何建峰 ❤️ 新娘 周婉情 | 我们结婚啦 💍');
 
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [importedPhotos, setImportedPhotos] = useState<string[]>([]);
+  const [photos, setPhotos] = useState<string[]>([]);
+
   const [musicVolume, setMusicVolume] = useState(0.4);
   const [playlist, setPlaylist] = useState<Track[]>(DEFAULT_PLAYLIST);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -39,6 +41,41 @@ export default function App() {
     hasStartedRef.current = hasStarted;
   }, [hasStarted]);
 
+  // 💡 优化：构建基于 useRef 的闭包穿越引用，用于在 App 组件卸载（如热更新、页面刷新或切页）时，安全地一次性销毁所有自定义追加的照片、歌曲的 Blob 物理缓存，消灭任何内存滞留
+  const importedPhotosRef = useRef<string[]>([]);
+  const playlistRef = useRef<Track[]>([]);
+
+  useEffect(() => {
+    importedPhotosRef.current = importedPhotos;
+  }, [importedPhotos]);
+
+  useEffect(() => {
+    playlistRef.current = playlist;
+  }, [playlist]);
+
+  useEffect(() => {
+    return () => {
+      // 释放所有已导入的照片 Object URL
+      importedPhotosRef.current.forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (err) {
+          console.warn('Failed to revoke image object URL on unmount:', err);
+        }
+      });
+      // 释放所有已追加的自定义音频 Object URL
+      playlistRef.current.forEach(track => {
+        if (track.isCustom && track.localSrc.startsWith('blob:')) {
+          try {
+            URL.revokeObjectURL(track.localSrc);
+          } catch (err) {
+            console.warn('Failed to revoke audio object URL on unmount:', err);
+          }
+        }
+      });
+    };
+  }, []);
+
   const handleAddMusicFile = (file: File) => {
     const url = URL.createObjectURL(file);
     const newTrack: Track = {
@@ -49,11 +86,8 @@ export default function App() {
     };
     setPlaylist(prev => [...prev, newTrack]);
     setCurrentTrackIndex(playlist.length);
-    setIsMusicPlaying(true);
+    setIsPlaying(true);
   };
-
-  const [importedPhotos, setImportedPhotos] = useState<string[]>([]);
-  const [photos, setPhotos] = useState<string[]>([]);
 
   const [isControlVisible, setIsControlVisible] = useState(true);
 
@@ -158,7 +192,6 @@ export default function App() {
 
     setIsPreloadFadingOut(true);
     setIsPlaying(true);
-    setIsMusicPlaying(true);
     setHasStarted(true);
     setTimeout(() => {
       setIsPreloading(false);
@@ -203,7 +236,10 @@ export default function App() {
     if (isPreloading) return;
 
     const handleKeys = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT') return;
+      // 💡 优化：排除输入框 (INPUT) 和下拉选择菜单 (SELECT)，避免用户在底栏操作时按空格或方向键发生全局播放冲突
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'SELECT') return;
+
       if (e.code === 'Space') {
         e.preventDefault();
         setIsPlaying(!isPlaying);
@@ -231,14 +267,13 @@ export default function App() {
       className="relative w-screen h-screen overflow-hidden bg-black select-none"
       onClick={handleScreenClick}
     >
-      <PhotoViewer photos={photos} currentIndex={currentIndex} transitionType={transitionType} />
+      <PhotoViewer photos={photos} currentIndex={currentIndex} transitionType={transitionType} duration={duration} />
       {hasStarted && (
         <>
           <ControlBar
             isVisible={isControlVisible} isPlaying={isPlaying} setIsPlaying={setIsPlaying} currentIndex={currentIndex} totalPhotos={photos.length}
             onPrev={handlePrev} onNext={handleNext} duration={duration} setDuration={setDuration} isRandom={isRandom} setIsRandom={setIsRandom}
-            titleText={titleText} setTitleText={setTitleText}
-            isMusicPlaying={isMusicPlaying} setIsMusicPlaying={setIsMusicPlaying} musicVolume={musicVolume} setMusicVolume={setMusicVolume}
+            musicVolume={musicVolume} setMusicVolume={setMusicVolume}
             playlist={playlist} setPlaylist={setPlaylist} currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
             isMusicShuffle={isMusicShuffle} setIsMusicShuffle={setIsMusicShuffle} onAddMusicFile={handleAddMusicFile} onImportFolder={handleImportFolder}
             onOpenAlbum={() => setIsAlbumOpen(true)}
@@ -259,7 +294,7 @@ export default function App() {
         </>
       )}
       <MusicPlayer
-        isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} playlist={playlist}
+        isPlaying={isPlaying} setIsPlaying={setIsPlaying} playlist={playlist}
         currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
         isMusicShuffle={isMusicShuffle} volume={musicVolume}
       />
