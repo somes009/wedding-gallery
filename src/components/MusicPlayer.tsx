@@ -8,10 +8,18 @@ export interface Track {
   isCustom?: boolean;
 }
 
-export const DEFAULT_PLAYLIST: Track[] = [
-  { id: '1', name: '告白气球', localSrc: '/gbqq.mp3' },
-  { id: '2', name: '像晴天像雨天', localSrc: '/xqtxyt.mp3' },
-];
+// 运行时自动扫描 public/music 目录下所有音频格式，无文件时列表为空
+const musicModules = import.meta.glob('/public/music/*.{mp3,wav,flac,aac,ogg,m4a}', { eager: true });
+
+export const DEFAULT_PLAYLIST: Track[] = Object.keys(musicModules).map((key, index) => {
+  const fileName = key.split('/').pop()?.replace(/\.[^/.]+$/, "") || `婚礼音乐 ${index + 1}`;
+  const webPath = key.replace(/^\/public/, "");
+  return {
+    id: `auto-${index}`,
+    name: fileName,
+    localSrc: webPath,
+  };
+});
 
 interface MusicPlayerProps {
   isPlaying: boolean;
