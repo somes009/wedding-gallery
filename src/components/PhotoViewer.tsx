@@ -14,11 +14,11 @@ export const PhotoViewer: React.FC<ViewerProps> = ({
 
   return (
     <div className="relative w-full h-screen bg-black overflow-hidden select-none flex items-center justify-center">
-      <div className="absolute inset-0 flex items-center justify-center p-6 md:p-12 z-10">
+      <div className="absolute inset-0 flex items-center justify-center p-0 z-10">
         <img
           src={photo}
           alt=""
-          className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
+          className="max-w-full max-h-full object-contain"
         />
       </div>
     </div>
