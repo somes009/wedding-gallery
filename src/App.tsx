@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PhotoViewer } from './components/PhotoViewer';
 import { ControlBar } from './components/ControlBar';
 import { MusicPlayer, DEFAULT_PLAYLIST, Track } from './components/MusicPlayer';
+import { LoadingScreen } from './components/LoadingScreen';
+import { PhotoAlbumModal } from './components/PhotoAlbumModal';
 
 const DEMO = [
   'https://images.unsplash.com/photo-1519741497674-611481863552?w=1500',
@@ -11,17 +13,30 @@ const DEMO = [
 
 export default function App() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(8000);
   const [isRandom, setIsRandom] = useState(false);
-  const [isPetalsOn, setIsPetalsOn] = useState(true);
-  const [titleText, setTitleText] = useState('新郎 某某 ❤️ 新娘 某某 | 我们结婚啦 💍');
+  const [titleText, setTitleText] = useState('新郎 何建峰 ❤️ 新娘 周婉情 | 我们结婚啦 💍');
 
-  const [isMusicPlaying, setIsMusicPlaying] = useState(true);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [musicVolume, setMusicVolume] = useState(0.4);
   const [playlist, setPlaylist] = useState<Track[]>(DEFAULT_PLAYLIST);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
   const [isMusicShuffle, setIsMusicShuffle] = useState(false);
+
+  // 预加载相关状态
+  const [isPreloading, setIsPreloading] = useState(true);
+  const [preloadProgress, setPreloadProgress] = useState(0);
+  const [isPreloadFadingOut, setIsPreloadFadingOut] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const hasStartedRef = useRef(false);
+  const preloadedImagesRef = useRef<HTMLImageElement[]>([]);
+  const [isAlbumOpen, setIsAlbumOpen] = useState(false);
+  const [thumbnails, setThumbnails] = useState<string[]>([]);
+
+  useEffect(() => {
+    hasStartedRef.current = hasStarted;
+  }, [hasStarted]);
 
   const handleAddMusicFile = (file: File) => {
     const url = URL.createObjectURL(file);
@@ -46,6 +61,109 @@ export default function App() {
     const paths = Object.keys(modules).map((key) => (modules[key] as any).default || key);
     setPhotos(paths.length > 0 ? paths : DEMO);
   }, []);
+
+  // 全量图片预加载与后台解码引擎
+  useEffect(() => {
+    if (photos.length === 0) return;
+
+    setIsPreloading(true);
+    setPreloadProgress(0);
+    setIsPreloadFadingOut(false);
+    setThumbnails([]); // 切换照片集时，重置缩略图数组
+
+    let loadedCount = 0;
+    const totalCount = photos.length;
+    const tempImages: HTMLImageElement[] = [];
+    const tempThumbnails: string[] = new Array(totalCount);
+
+    const handleImageDecoded = (idx: number, img: HTMLImageElement) => {
+      // 💡 优化：使用 setTimeout 将重型的 Canvas 下采样和 Base64 生成切片化（Slicing），推入下一个宏任务。
+      // 这能保证主线程在每次解码后都有机会执行屏幕刷新（Paint），进度条进度得以及时完美渲染。
+      setTimeout(() => {
+        let thumb = photos[idx];
+        try {
+          if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const targetWidth = 320; // 320 像素宽度能保证在视网膜屏上依旧清晰，同时体积仅 5-8KB
+            const scale = targetWidth / img.naturalWidth;
+            canvas.width = targetWidth;
+            canvas.height = img.naturalHeight * scale;
+            
+            ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+            thumb = canvas.toDataURL('image/jpeg', 0.6); // 采用 60% 压缩，体积骤降 2000 倍以上
+          }
+        } catch (err) {
+          console.warn(`Canvas thumbnail generation failed for ${photos[idx]}, falling back to original url.`, err);
+        }
+        
+        tempThumbnails[idx] = thumb;
+        loadedCount++;
+        const progress = Math.round((loadedCount / totalCount) * 100);
+        setPreloadProgress(progress);
+
+        if (loadedCount >= totalCount) {
+          // 保存生成的全量缩略图
+          setThumbnails([...tempThumbnails]);
+          // 全量常驻内存，防止浏览器垃圾回收（GC），消灭后续播放时 0.2 秒的 GPU 同步解码卡顿与灰色闪烁
+          preloadedImagesRef.current = tempImages;
+
+          // 如果已经开启过（例如用户中途导入新文件夹），不需要再次点击按钮，直接自动解锁淡出
+          if (hasStartedRef.current) {
+            setIsPreloadFadingOut(true);
+            const timer = setTimeout(() => {
+              setIsPreloading(false);
+              setIsPreloadFadingOut(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+          }
+        }
+      }, 0);
+    };
+
+    photos.forEach((src, idx) => {
+      const img = new Image();
+      // 支持跨域获取（防止 Unsplash Demo 图片在 Canvas 压缩时报安全沙箱限制错误）
+      img.crossOrigin = 'anonymous';
+      tempImages.push(img);
+
+      const triggerDecode = () => {
+        if (typeof img.decode === 'function') {
+          img.decode()
+            .then(() => handleImageDecoded(idx, img))
+            .catch((err) => {
+              console.warn(`Failed to decode image asynchronously: ${src}`, err);
+              handleImageDecoded(idx, img); // 降级处理，即使解码报错，也作为已加载推进，防止首屏卡死
+            });
+        } else {
+          handleImageDecoded(idx, img);
+        }
+      };
+
+      // 💡 优化：必须先绑定事件处理器，最后再给 src 赋值。
+      // 否则在图片已被浏览器缓存的情况下，赋值 src 会直接触发加载完毕，从而遗漏 onload 监听。
+      img.onload = triggerDecode;
+      img.onerror = () => {
+        console.error(`Failed to load image: ${src}`);
+        handleImageDecoded(idx, img); // 容错处理
+      };
+
+      img.src = src;
+    });
+  }, [photos]);
+
+  const handleStartJourney = () => {
+    if (preloadProgress < 100) return; // 强力拦截：未到 100% 绝对禁止任何方式进入
+
+    setIsPreloadFadingOut(true);
+    setIsPlaying(true);
+    setIsMusicPlaying(true);
+    setHasStarted(true);
+    setTimeout(() => {
+      setIsPreloading(false);
+      setIsPreloadFadingOut(false);
+    }, 1000);
+  };
 
   const handleImportFolder = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -74,12 +192,15 @@ export default function App() {
   const handlePrev = () => setCurrentIndex(getNextIdx(-1));
 
   useEffect(() => {
-    if (!isPlaying || photos.length <= 1) return;
+    if (!isPlaying || photos.length <= 1 || isPreloading || isAlbumOpen) return;
     const interval = setInterval(handleNext, duration);
     return () => clearInterval(interval);
-  }, [isPlaying, photos, duration, isRandom, currentIndex]);
+  }, [isPlaying, photos, duration, isRandom, currentIndex, isPreloading, isAlbumOpen]);
 
   useEffect(() => {
+    // 强力拦截：首屏未加载完时，绝对禁止注册键盘快捷键
+    if (isPreloading) return;
+
     const handleKeys = (e: KeyboardEvent) => {
       if (document.activeElement?.tagName === 'INPUT') return;
       if (e.code === 'Space') {
@@ -93,39 +214,12 @@ export default function App() {
     };
     window.addEventListener('keydown', handleKeys);
     return () => window.removeEventListener('keydown', handleKeys);
-  }, [photos, currentIndex, isRandom, isPlaying]);
+  }, [photos, currentIndex, isRandom, isPlaying, isPreloading]);
 
-  useEffect(() => {
-    let timeoutId: any;
 
-    const handleMouseMove = () => {
-      // 只要鼠标移动，就显示控制栏，并重置定时器
-      setIsControlVisible(true);
-
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-
-      // 3秒后自动隐藏控制栏
-      timeoutId = setTimeout(() => {
-        // 如果鼠标悬停在控制栏内部，或者正在输入文本/选择下拉菜单，则不自动隐藏
-        const isHoveringControl = document.querySelector('.control-bar-container:hover');
-        const isInteractiveFocused = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName || '');
-        
-        if (!isHoveringControl && !isInteractiveFocused) {
-          setIsControlVisible(false);
-        }
-      }, 3000);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      if (timeoutId) clearTimeout(timeoutId);
-    };
-  }, []);
 
   const handleScreenClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (isPreloading) return; // 强力拦截：加载中点击屏幕不响应显隐，防止任何交互穿透
     const target = e.target as HTMLElement;
     if (target.closest('.control-bar-container')) return;
     setIsControlVisible((prev) => !prev);
@@ -136,20 +230,45 @@ export default function App() {
       className="relative w-screen h-screen overflow-hidden bg-black select-none"
       onClick={handleScreenClick}
     >
-      <PhotoViewer photos={photos} currentIndex={currentIndex} isPetalsOn={isPetalsOn} />
-      <ControlBar
-        isVisible={isControlVisible} isPlaying={isPlaying} setIsPlaying={setIsPlaying} currentIndex={currentIndex} totalPhotos={photos.length}
-        onPrev={handlePrev} onNext={handleNext} duration={duration} setDuration={setDuration} isRandom={isRandom} setIsRandom={setIsRandom}
-        isPetalsOn={isPetalsOn} setIsPetalsOn={setIsPetalsOn} titleText={titleText} setTitleText={setTitleText}
-        isMusicPlaying={isMusicPlaying} setIsMusicPlaying={setIsMusicPlaying} musicVolume={musicVolume} setMusicVolume={setMusicVolume}
-        playlist={playlist} setPlaylist={setPlaylist} currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
-        isMusicShuffle={isMusicShuffle} setIsMusicShuffle={setIsMusicShuffle} onAddMusicFile={handleAddMusicFile} onImportFolder={handleImportFolder}
-      />
+      <PhotoViewer photos={photos} currentIndex={currentIndex} />
+      {hasStarted && (
+        <>
+          <ControlBar
+            isVisible={isControlVisible} isPlaying={isPlaying} setIsPlaying={setIsPlaying} currentIndex={currentIndex} totalPhotos={photos.length}
+            onPrev={handlePrev} onNext={handleNext} duration={duration} setDuration={setDuration} isRandom={isRandom} setIsRandom={setIsRandom}
+            titleText={titleText} setTitleText={setTitleText}
+            isMusicPlaying={isMusicPlaying} setIsMusicPlaying={setIsMusicPlaying} musicVolume={musicVolume} setMusicVolume={setMusicVolume}
+            playlist={playlist} setPlaylist={setPlaylist} currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
+            isMusicShuffle={isMusicShuffle} setIsMusicShuffle={setIsMusicShuffle} onAddMusicFile={handleAddMusicFile} onImportFolder={handleImportFolder}
+            onOpenAlbum={() => setIsAlbumOpen(true)}
+          />
+          <PhotoAlbumModal
+            isOpen={isAlbumOpen}
+            onClose={() => setIsAlbumOpen(false)}
+            photos={photos}
+            thumbnails={thumbnails}
+            currentIndex={currentIndex}
+            onSelectPhoto={(idx) => {
+              setCurrentIndex(idx);
+              setIsAlbumOpen(false);
+            }}
+          />
+        </>
+      )}
       <MusicPlayer
         isPlaying={isMusicPlaying} setIsPlaying={setIsMusicPlaying} playlist={playlist}
         currentTrackIndex={currentTrackIndex} setCurrentTrackIndex={setCurrentTrackIndex}
         isMusicShuffle={isMusicShuffle} volume={musicVolume}
       />
+      {isPreloading && (
+        <LoadingScreen
+          progress={preloadProgress}
+          onStart={handleStartJourney}
+          isReady={preloadProgress === 100}
+          isFadingOut={isPreloadFadingOut}
+          titleText={titleText}
+        />
+      )}
     </div>
   );
 }

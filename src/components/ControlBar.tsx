@@ -1,26 +1,28 @@
 import React, { useState, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, Type, FolderOpen, Flower } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat, Maximize, Minimize, Type, FolderOpen, LayoutGrid } from 'lucide-react';
 import { MusicStatusBar, Track } from './MusicPlayer';
 
 interface Props {
   isVisible: boolean; isPlaying: boolean; setIsPlaying: (p: boolean) => void;
   currentIndex: number; totalPhotos: number; onPrev: () => void; onNext: () => void;
   duration: number; setDuration: (ms: number) => void; isRandom: boolean; setIsRandom: (r: boolean) => void;
-  isPetalsOn: boolean; setIsPetalsOn: (o: boolean) => void; titleText: string; setTitleText: (t: string) => void;
+  titleText: string; setTitleText: (t: string) => void;
   isMusicPlaying: boolean; setIsMusicPlaying: (p: boolean) => void; musicVolume: number; setMusicVolume: (v: number) => void;
   playlist: Track[]; setPlaylist: React.Dispatch<React.SetStateAction<Track[]>>;
   currentTrackIndex: number; setCurrentTrackIndex: (idx: number) => void;
   isMusicShuffle: boolean; setIsMusicShuffle: (s: boolean) => void;
   onAddMusicFile: (file: File) => void;
   onImportFolder: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onOpenAlbum: () => void;
 }
 
 export const ControlBar: React.FC<Props> = ({
   isVisible, isPlaying, setIsPlaying, currentIndex, totalPhotos, onPrev, onNext,
-  duration, setDuration, isRandom, setIsRandom, isPetalsOn, setIsPetalsOn,
+  duration, setDuration, isRandom, setIsRandom,
   titleText, setTitleText, isMusicPlaying, setIsMusicPlaying, musicVolume,
   setMusicVolume, playlist, setPlaylist, currentTrackIndex, setCurrentTrackIndex,
-  isMusicShuffle, setIsMusicShuffle, onAddMusicFile, onImportFolder
+  isMusicShuffle, setIsMusicShuffle, onAddMusicFile, onImportFolder,
+  onOpenAlbum
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -68,10 +70,10 @@ export const ControlBar: React.FC<Props> = ({
             }}
             className="bg-white/10 text-white rounded-lg px-2 py-1 text-xs border border-white/10 cursor-pointer focus:outline-none"
           >
-            <option value={3000} className="bg-neutral-950">3秒</option>
-            <option value={5000} className="bg-neutral-900">5秒</option>
-            <option value={8000} className="bg-neutral-900">8秒</option>
-            <option value={10000} className="bg-neutral-900">10秒</option>
+            <option value={3000} className="bg-neutral-950">3秒/张</option>
+            <option value={5000} className="bg-neutral-900">5秒/张</option>
+            <option value={8000} className="bg-neutral-900">8秒/张</option>
+            <option value={10000} className="bg-neutral-900">10秒/张</option>
             <option value="custom" className="bg-neutral-950">自定义...</option>
           </select>
 
@@ -94,13 +96,13 @@ export const ControlBar: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-1 border-l border-white/10 pl-2">
-          <button onClick={() => setIsPetalsOn(!isPetalsOn)} className={`p-1.5 rounded-lg transition-all ${isPetalsOn ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`}>
-            <Flower size={14} className={isPetalsOn ? 'animate-spin [animation-duration:6s]' : ''} />
-          </button>
-          <button onClick={() => setIsEditing(!isEditing)} className={`p-1.5 rounded-lg transition-all ${isEditing ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`}>
+          <button onClick={() => setIsEditing(!isEditing)} className={`p-1.5 rounded-lg transition-all ${isEditing ? 'text-rose-400 bg-rose-500/10' : 'text-gray-300'}`} title="编辑相册字幕">
             <Type size={14} />
           </button>
-          <button onClick={toggleFull} className={btn}>
+          <button onClick={onOpenAlbum} className={btn} title="查看幸福影集">
+            <LayoutGrid size={14} />
+          </button>
+          <button onClick={toggleFull} className={btn} title={isFullscreen ? "退出全屏" : "全屏播放"}>
             {isFullscreen ? <Minimize size={14} /> : <Maximize size={14} />}
           </button>
         </div>
